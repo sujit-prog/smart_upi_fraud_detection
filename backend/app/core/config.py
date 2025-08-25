@@ -8,7 +8,8 @@ class Settings(BaseSettings):
     # API Settings
     API_V1_STR: str = "/api/v1"
     PROJECT_NAME: str = "UPI Fraud Detection API"
-    
+    database_url: str = "sqlite:///./test.db"
+    secret_key: str = "your-secret-key"
     # CORS Settings
     ALLOWED_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:8080"]
     
@@ -41,6 +42,8 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     ENABLE_METRICS: bool = True
     
+    DEBUG: bool = False   # Add this
+    RELOAD: bool = False  # Add this
     class Config:
         env_file = ".env"
         case_sensitive = True

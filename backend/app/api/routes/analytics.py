@@ -1,5 +1,6 @@
 # app/api/routes/analytics.py
 from fastapi import APIRouter, Depends, HTTPException, status, Query
+from sqlalchemy import extract
 from sqlalchemy.orm import Session
 from typing import Dict, Any, List
 from datetime import datetime, timedelta

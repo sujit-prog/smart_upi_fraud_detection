@@ -11,6 +11,7 @@ from .config import settings
 from .database import get_db, get_user_by_username
 from ..schemas.user import UserInDB
 
+
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -78,10 +79,10 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from datetime import timedelta
 
-from ...core.database import get_db, create_user, get_user_by_username, get_user_by_email
-from ...core.auth import authenticate_user, create_access_token, get_password_hash
-from ...core.config import settings
-from ...schemas.user import UserCreate, UserResponse, Token
+from app.core.database import get_db, create_user, get_user_by_username, get_user_by_email
+from app.core.auth import authenticate_user, create_access_token, get_password_hash
+from app.core.config import settings
+from app.schemas.user import UserCreate, UserResponse, Token
 
 router = APIRouter()
 
