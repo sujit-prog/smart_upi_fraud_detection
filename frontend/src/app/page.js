@@ -1,15 +1,14 @@
 "use client";
 
-"use client";
-import React from "react";
-
+import React, { useState, useEffect, useMemo } from "react";
 
 // =================================================================
 // --- BASIC UTILS (no Tailwind, no external icon libs) ---
 // =================================================================
 
 // Helper to generate a random number within a range
-const randomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+const randomInt = (min, max) =>
+  Math.floor(Math.random() * (max - min + 1)) + min;
 
 // Mock list of beneficiaries
 const mockBeneficiaries = [
@@ -273,7 +272,7 @@ const TransactionTable = ({ transactions }) => {
 // --- DASHBOARD PAGE (MAIN EXPORT) ---
 // =================================================================
 
-const DashboardPage = () => {
+const RiskDashboardPage = () => {
   const [upiId, setUpiId] = useState("user123@bank");
   const [transactions, setTransactions] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -325,14 +324,13 @@ const DashboardPage = () => {
           <span className="dashboard-icon" role="img" aria-label="shield">
             🛡️
           </span>
-          <h1 className="dashboard-title">UPI FraudGuard Dashboard</h1>
+          <h1 className="dashboard-title">UPI Risk Insights</h1>
         </div>
         <p className="dashboard-subtitle">
-          Your Personal Transaction Monitoring Hub
+          Scenario-based risk analysis for simulated UPI activity
         </p>
       </header>
 
-      {/* UPI ID Input Section */}
       <TransactionForm
         upiId={upiId}
         setUpiId={setUpiId}
@@ -340,13 +338,12 @@ const DashboardPage = () => {
         isLoading={isLoading}
       />
 
-      {/* Loading/Error Messages */}
       {isLoading && (
         <div className="status-message status-message--info">
           <span className="status-icon" role="img" aria-label="clock">
             ⏳
           </span>
-          <span>Analyzing UPI transactions...</span>
+          <span>Analyzing mock UPI transactions...</span>
         </div>
       )}
       {error && (
@@ -355,14 +352,12 @@ const DashboardPage = () => {
         </div>
       )}
 
-      {/* Dashboard Content */}
       {isDataFetched && !isLoading && transactions.length > 0 && (
         <div className="dashboard-content">
           <RiskSummaryCard transactions={summaryData} />
-
           <div>
             <h2 className="section-title" style={{ marginTop: 8 }}>
-              Recent Transactions (Last 30 Days)
+              Recent Simulated Transactions (Last 30 Days)
             </h2>
             <TransactionTable transactions={transactions} />
           </div>
@@ -372,4 +367,4 @@ const DashboardPage = () => {
   );
 };
 
-export default DashboardPage;
+export default RiskDashboardPage;
