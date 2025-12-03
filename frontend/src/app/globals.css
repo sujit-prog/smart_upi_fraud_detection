@@ -1,0 +1,468 @@
+/* ===== Global reset-ish ===== */
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background-color: #f5f5f5;
+  color: #222;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* ===== Layout ===== */
+
+.page-root {
+  min-height: 100vh;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 24px;
+}
+
+.card {
+  width: 100%;
+  max-width: 900px;
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 24px 20px 28px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
+}
+
+/* ===== Typography ===== */
+
+.card-title {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0 0 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.card-title span {
+  color: #4f46e5; /* indigo-ish highlight */
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 8px;
+}
+
+/* ===== Form ===== */
+
+.form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+@media (min-width: 640px) {
+  .form-row {
+    flex-direction: row;
+    align-items: center;
+  }
+}
+
+.form-input-wrapper {
+  flex: 1;
+}
+
+.input-text {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid #d4d4d4;
+  font-size: 14px;
+  outline: none;
+}
+
+.input-text:focus {
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.18);
+}
+
+/* ===== Buttons ===== */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 18px;
+  border-radius: 6px;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.05s ease;
+}
+
+.button-primary {
+  background-color: #4f46e5;
+  color: #ffffff;
+  box-shadow: 0 4px 10px rgba(79, 70, 229, 0.25);
+}
+
+.button-primary:hover:not(:disabled) {
+  background-color: #4338ca;
+}
+
+.button-primary:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25);
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* simple spinner container */
+.button-spinner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ===== Alerts / Info boxes ===== */
+
+.alert-error {
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid #fca5a5;
+  background-color: #fee2e2;
+  color: #b91c1c;
+  font-size: 13px;
+}
+
+.info-box {
+  margin-bottom: 18px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border-left: 4px solid #3b82f6;
+  background-color: #eff6ff;
+  font-size: 13px;
+}
+
+.info-box-title {
+  font-weight: 600;
+  color: #1d4ed8;
+  margin-bottom: 4px;
+}
+
+.info-box-text {
+  color: #1d4ed8;
+}
+
+.info-box-button {
+  margin-top: 4px;
+  background: none;
+  border: none;
+  padding: 0;
+  color: #2563eb;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+/* ===== Table ===== */
+
+.table-container {
+  margin-top: 16px;
+  border-radius: 8px;
+  overflow-x: auto;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.table thead {
+  background-color: #f9fafb;
+}
+
+.table th,
+.table td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid #e5e7eb;
+  white-space: nowrap;
+}
+
+.table th {
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6b7280;
+}
+
+.table tbody tr:hover {
+  background-color: #f9fafb;
+}
+
+/* Amount styles */
+
+.amount-debit {
+  color: #b91c1c;
+  font-weight: 600;
+}
+
+.amount-credit {
+  color: #15803d;
+  font-weight: 600;
+}
+
+/* ===== Risk badges ===== */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+.badge-high {
+  background-color: #fef2f2;
+  border-color: #f87171;
+  color: #b91c1c;
+}
+
+.badge-medium {
+  background-color: #fffbeb;
+  border-color: #fbbf24;
+  color: #92400e;
+}
+
+.badge-low {
+  background-color: #ecfdf5;
+  border-color: #4ade80;
+  color: #166534;
+}
+/* ===== Dashboard layout ===== */
+
+.dashboard-root {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px 16px 40px;
+}
+
+.dashboard-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.dashboard-title-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.dashboard-title {
+  font-size: 28px;
+  font-weight: 800;
+}
+
+.dashboard-icon {
+  color: #2563eb;
+}
+
+.dashboard-subtitle {
+  font-size: 15px;
+  color: #6b7280;
+}
+
+/* ===== Transaction form ===== */
+
+.tf-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+@media (min-width: 640px) {
+  .tf-container {
+    flex-direction: row;
+    align-items: center;
+  }
+}
+
+.tf-input {
+  flex: 1;
+}
+
+.tf-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 170px;
+}
+
+/* ===== Risk summary ===== */
+
+.risk-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border-left: 4px solid #e5e7eb;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+  margin-bottom: 20px;
+  background-color: #f9fafb;
+}
+
+@media (min-width: 640px) {
+  .risk-summary {
+    flex-direction: row;
+    align-items: center;
+  }
+}
+
+.risk-summary--alert {
+  border-left-color: #dc2626;
+  background-color: #fef2f2;
+}
+
+.risk-summary--ok {
+  border-left-color: #16a34a;
+  background-color: #ecfdf5;
+}
+
+.risk-summary-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.risk-summary-icon {
+  flex-shrink: 0;
+}
+
+.risk-summary-icon--alert {
+  color: #dc2626;
+}
+
+.risk-summary-icon--ok {
+  color: #16a34a;
+}
+
+.risk-summary-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0 0 4px;
+}
+
+.risk-summary-text {
+  font-size: 13px;
+  margin: 0;
+}
+
+.risk-summary-text--alert {
+  color: #b91c1c;
+}
+
+.risk-summary-text--ok {
+  color: #15803d;
+}
+
+.risk-summary-side {
+  text-align: right;
+}
+
+.risk-summary-total {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.risk-summary-total-label {
+  font-size: 12px;
+  color: #6b7280;
+  margin: 0;
+}
+
+.risk-summary-badges {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.risk-summary-count {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.risk-summary-count--high {
+  color: #b91c1c;
+}
+
+.risk-summary-count--medium {
+  color: #a16207;
+}
+
+/* ===== Status messages ===== */
+
+.status-message {
+  margin-top: 16px;
+  margin-bottom: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-message--info {
+  background-color: #dbeafe;
+  color: #1d4ed8;
+}
+
+.status-message--error {
+  background-color: #fee2e2;
+  color: #b91c1c;
+}
+
+.status-message--empty {
+  text-align: center;
+  font-size: 13px;
+  color: #6b7280;
+  padding: 18px 12px;
+}
+
+.status-icon {
+  flex-shrink: 0;
+}
+
+/* Neutral badge for numeric risk score */
+.badge-neutral {
+  background-color: #111827;
+  color: #f9fafb;
+  border-color: #4b5563;
+}
+.table-factors-cell {
+  max-width: 220px;
+  font-size: 12px;
+}

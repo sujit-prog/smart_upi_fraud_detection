@@ -10,6 +10,7 @@ from pathlib import Path
 from ..core.config import settings
 
 logger = logging.getLogger(__name__)
+MODEL_DIR = os.path.join("app", "models")
 
 class ModelService:
     def __init__(self):
