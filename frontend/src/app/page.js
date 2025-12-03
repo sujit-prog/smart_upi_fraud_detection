@@ -1,6 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+"use client";
+import React from "react";
+
 
 // =================================================================
 // --- BASIC UTILS (no Tailwind, no external icon libs) ---
