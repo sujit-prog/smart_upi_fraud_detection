@@ -17,22 +17,28 @@ class RiskLevel(str, Enum):
     HIGH = "HIGH"
     CRITICAL = "CRITICAL"
 
+class Recommendation(str, Enum):
+    APPROVE = "APPROVE"
+    MANUAL_REVIEW = "MANUAL_REVIEW"
+    BLOCK = "BLOCK"
+    MONITOR = "MONITOR"
+
 class FraudCheckRequest(BaseModel):
     """Request model for fraud detection"""
-    transaction_id: str = Field(..., description="Unique transaction identifier")
-    amount: float = Field(..., gt=0, description="Transaction amount")
-    sender_account: str = Field(..., description="Sender account number/UPI ID")
-    receiver_account: str = Field(..., description="Receiver account number/UPI ID")
+    transaction_id: str = Field(..., min_length=1, max_length=100, description="Unique transaction identifier")
+    amount: float = Field(..., gt=0, le=200000, description="Transaction amount in INR")
+    sender_account: str = Field(..., min_length=1, max_length=100, description="Sender account number/UPI ID")
+    receiver_account: str = Field(..., min_length=1, max_length=100, description="Receiver account number/UPI ID")
     transaction_type: TransactionType = Field(..., description="Type of transaction")
     transaction_time: Optional[datetime] = Field(None, description="Transaction timestamp")
     
     # Additional fraud detection features
-    device_id: Optional[str] = Field(None, description="Device identifier")
-    ip_address: Optional[str] = Field(None, description="Client IP address")
-    location: Optional[str] = Field(None, description="Transaction location")
+    device_id: Optional[str] = Field(None, max_length=100, description="Device identifier")
+    ip_address: Optional[str] = Field(None, max_length=45, description="Client IP address")
+    location: Optional[str] = Field(None, max_length=100, description="Transaction location")
     
     # Behavioral features
-    user_age_days: Optional[int] = Field(None, description="User account age in days")
+    user_age_days: Optional[int] = Field(None, ge=0, description="User account age in days")
     transaction_hour: Optional[int] = Field(None, ge=0, le=23, description="Hour of transaction")
     is_weekend: Optional[bool] = Field(None, description="Is transaction on weekend")
     
@@ -45,16 +51,25 @@ class FraudCheckRequest(BaseModel):
         if v <= 0:
             raise ValueError('Amount must be positive')
         if v > 200000:  # UPI limit
-            raise ValueError('Amount exceeds UPI transaction limit')
-        return v
+            raise ValueError('Amount exceeds UPI transaction limit of ₹200,000')
+        return round(v, 2)
     
     @validator('transaction_time', pre=True)
     def validate_transaction_time(cls, v):
         if v is None:
-            return datetime.utcnow()
+            return None
         if isinstance(v, str):
-            return datetime.fromisoformat(v.replace('Z', '+00:00'))
+            try:
+                return datetime.fromisoformat(v.replace('Z', '+00:00'))
+            except ValueError:
+                raise ValueError('Invalid datetime format')
         return v
+    
+    @validator('sender_account', 'receiver_account')
+    def validate_accounts(cls, v):
+        if not v or not v.strip():
+            raise ValueError('Account cannot be empty')
+        return v.strip()
 
 class TransactionCreate(BaseModel):
     """Schema for creating a transaction"""
@@ -81,6 +96,9 @@ class TransactionResponse(BaseModel):
     fraud_reason: Optional[str]
     transaction_time: datetime
     created_at: datetime
+    device_id: Optional[str]
+    ip_address: Optional[str]
+    location: Optional[str]
     
     class Config:
         from_attributes = True
@@ -93,13 +111,13 @@ class FraudDetectionResponse(BaseModel):
     risk_level: RiskLevel = Field(..., description="Risk level assessment")
     confidence: float = Field(..., ge=0.0, le=1.0, description="Model confidence")
     features_analyzed: List[str] = Field(default=[], description="Features used in analysis")
-    recommendation: str = Field(..., description="Recommended action")
+    recommendation: Recommendation = Field(..., description="Recommended action")
     reason: Optional[str] = Field(None, description="Explanation for the decision")
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
 class BatchFraudCheckRequest(BaseModel):
     """Request model for batch fraud detection"""
-    transactions: List[FraudCheckRequest] = Field(..., max_items=100)
+    transactions: List[FraudCheckRequest] = Field(..., min_items=1, max_items=100)
     
     @validator('transactions')
     def validate_batch_size(cls, v):
@@ -107,6 +125,12 @@ class BatchFraudCheckRequest(BaseModel):
             raise ValueError('At least one transaction is required')
         if len(v) > 100:
             raise ValueError('Batch size cannot exceed 100 transactions')
+        
+        # Check for duplicate transaction IDs
+        transaction_ids = [t.transaction_id for t in v]
+        if len(transaction_ids) != len(set(transaction_ids)):
+            raise ValueError('Duplicate transaction IDs found in batch')
+        
         return v
 
 class FraudAlert(BaseModel):
@@ -144,7 +168,17 @@ class FraudStatistics(BaseModel):
 
 class FeedbackRequest(BaseModel):
     """Feedback request for model improvement"""
-    transaction_id: str
-    is_actual_fraud: bool
-    feedback_notes: Optional[str] = Field(None, max_length=500)
-    confidence_rating: Optional[int] = Field(None, ge=1, le=5)
+    transaction_id: str = Field(..., description="Transaction ID")
+    is_actual_fraud: bool = Field(..., description="Whether transaction was actually fraudulent")
+    feedback_notes: Optional[str] = Field(None, max_length=500, description="Additional feedback notes")
+    confidence_rating: Optional[int] = Field(None, ge=1, le=5, description="Confidence in feedback (1-5)")
+
+class TransactionSummary(BaseModel):
+    """Transaction summary statistics"""
+    period_days: int
+    total_transactions: int
+    total_amount: float
+    average_amount: float
+    fraudulent_transactions: int
+    fraud_rate: float
+    transaction_types: List[Dict[str, Any]]
