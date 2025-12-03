@@ -3,14 +3,12 @@
 import React, { useState, useEffect, useMemo } from "react";
 
 // =================================================================
-// --- BASIC UTILS (no Tailwind, no external icon libs) ---
+// Helpers
 // =================================================================
 
-// Helper to generate a random number within a range
 const randomInt = (min, max) =>
   Math.floor(Math.random() * (max - min + 1)) + min;
 
-// Mock list of beneficiaries
 const mockBeneficiaries = [
   "Manoj_KiranaStore@okicici",
   "Priya_Tuition@ybl",
@@ -20,9 +18,6 @@ const mockBeneficiaries = [
   "NEW_MERCHANT_XYZ@sbi",
 ];
 
-/**
- * Mock transaction data generator.
- */
 const generateMockTransactions = () => {
   const today = new Date();
   const transactions = [];
@@ -31,21 +26,20 @@ const generateMockTransactions = () => {
     const date = new Date(
       today.getTime() - randomInt(1, 30) * 24 * 60 * 60 * 1000
     );
+
     const amount = randomInt(50, 25000);
     const beneficiary =
       mockBeneficiaries[randomInt(0, mockBeneficiaries.length - 1)];
-    const isNewBeneficiary = beneficiary.includes("NEW_MERCHANT");
-    const isLateNight = date.getHours() >= 23 || date.getHours() <= 5;
 
     transactions.push({
       id: `TXN${Date.now()}-${i}${randomInt(100, 999)}`,
       date: date.toISOString().split("T")[0],
-      time: date.toTimeString().split(" ")[0].substring(0, 5),
+      time: date.toTimeString().substring(0, 5),
       amount,
-      type: randomInt(0, 1) === 0 ? "Debit" : "Credit",
+      type: Math.random() < 0.5 ? "Debit" : "Credit",
       beneficiary,
-      isNewBeneficiary,
-      isLateNight,
+      isNewBeneficiary: beneficiary.includes("NEW_MERCHANT"),
+      isLateNight: date.getHours() >= 23 || date.getHours() <= 5,
     });
   }
 
@@ -55,316 +49,165 @@ const generateMockTransactions = () => {
   );
 };
 
-/**
- * Calculates a risk score (0-100) and assigns a risk level based on transaction properties.
- */
-const calculateRiskScore = (transaction) => {
+const calculateRisk = (txn) => {
   let score = 0;
-  let factors = [];
+  const reasons = [];
 
-  // Factor 1: High Transaction Amount
-  if (transaction.amount > 15000) {
+  if (txn.amount > 15000) {
     score += 35;
-    factors.push("Large Amount (High)");
-  } else if (transaction.amount > 5000) {
+    reasons.push("High Transaction Amount");
+  } else if (txn.amount > 5000) {
     score += 15;
-    factors.push("Large Amount (Medium)");
+    reasons.push("Medium Transaction Amount");
   }
 
-  // Factor 2: New/Suspicious Beneficiary
-  if (transaction.isNewBeneficiary) {
+  if (txn.isNewBeneficiary) {
     score += 40;
-    factors.push("New/Untrusted Beneficiary");
+    reasons.push("New Beneficiary");
   }
 
-  // Factor 3: Time of Day (Late Night/Early Morning is often riskier)
-  if (transaction.isLateNight) {
+  if (txn.isLateNight) {
     score += 20;
-    factors.push("Unusual Transaction Time (Late Night)");
+    reasons.push("Odd Transaction Time");
   }
 
-  // Factor 4: Type of transaction (Debits are generally higher risk than Credits)
-  if (transaction.type === "Debit") {
-    score += 5;
-  }
+  if (txn.type === "Debit") score += 5;
 
-  // Cap the score at 100
   score = Math.min(score, 100);
 
-  let level;
-  let colorClass;
-  if (score > 65) {
-    level = "High";
-    colorClass = "badge badge-high";
-  } else if (score > 30) {
-    level = "Medium";
-    colorClass = "badge badge-medium";
-  } else {
-    level = "Low";
-    colorClass = "badge badge-low";
-  }
+  let level = "Low";
+  if (score > 65) level = "High";
+  else if (score > 30) level = "Medium";
 
-  return {
-    score,
-    level,
-    colorClass,
-    factors: factors.length > 0 ? factors.join(", ") : "Standard Behavior",
-  };
+  return { score, level, reasons };
 };
 
 // =================================================================
-// --- COMPONENTS (plain CSS classes + emojis) ---
+// UI Components
 // =================================================================
 
-const TransactionForm = ({ upiId, setUpiId, onFetch, isLoading }) => {
-  return (
-    <div className="tf-container">
-      <input
-        type="text"
-        placeholder="Enter UPI ID (e.g., user123@bank)"
-        value={upiId}
-        onChange={(e) => setUpiId(e.target.value)}
-        className="input-text tf-input"
-      />
-      <button
-        onClick={onFetch}
-        disabled={isLoading || !upiId}
-        className="button button-primary tf-button"
-      >
-        <span role="img" aria-label="search">
-          🔍
-        </span>
-        <span style={{ marginLeft: 6 }}>
-          {isLoading ? "Fetching..." : "Check Transactions"}
-        </span>
-      </button>
-    </div>
-  );
-};
+const TransactionForm = ({ upiId, onChange, onFetch, loading }) => (
+  <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
+    <input
+      value={upiId}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder="Enter UPI ID (e.g., user@bank)"
+      style={{
+        flex: 1,
+        padding: "10px",
+        borderRadius: "8px",
+        border: "1px solid #ccc",
+      }}
+    />
+    <button
+      onClick={onFetch}
+      disabled={loading || !upiId}
+      style={{
+        padding: "10px 16px",
+        background: loading ? "#888" : "#007bff",
+        color: "#fff",
+        borderRadius: "8px",
+        border: "none",
+      }}
+    >
+      {loading ? "Loading..." : "Check"}
+    </button>
+  </div>
+);
 
-const RiskSummaryCard = ({ transactions }) => {
-  if (!transactions || transactions.length === 0) return null;
-
-  const highRiskCount = transactions.filter(
-    (t) => t.risk.level === "High"
-  ).length;
-  const mediumRiskCount = transactions.filter(
-    (t) => t.risk.level === "Medium"
-  ).length;
-  const totalTransactions = transactions.length;
-  const safePercentage = Math.round(
-    ((totalTransactions - highRiskCount) / totalTransactions) * 100
-  );
-
-  const riskMessage =
-    highRiskCount > 0
-      ? `ALERT: ${highRiskCount} transactions flagged as HIGH Risk.`
-      : `Overall security is ${safePercentage}%. No HIGH risk transactions found.`;
-
-  const icon =
-    highRiskCount > 0 ? (
-      <span className="risk-summary-icon risk-summary-icon--alert">⚠️</span>
-    ) : (
-      <span className="risk-summary-icon risk-summary-icon--ok">✅</span>
-    );
-
-  const boxClass =
-    highRiskCount > 0
-      ? "risk-summary risk-summary--alert"
-      : "risk-summary risk-summary--ok";
-
-  return (
-    <div className={boxClass}>
-      <div className="risk-summary-main">
-        {icon}
-        <div>
-          <h2 className="risk-summary-title">Risk Summary (Last 30 Days)</h2>
-          <p
-            className={
-              highRiskCount > 0
-                ? "risk-summary-text risk-summary-text--alert"
-                : "risk-summary-text risk-summary-text--ok"
-            }
+const TransactionTable = ({ list }) => (
+  <table
+    style={{
+      width: "100%",
+      borderCollapse: "collapse",
+      background: "#fff",
+    }}
+  >
+    <thead>
+      <tr>
+        {[
+          "Date",
+          "Time",
+          "Amount",
+          "Type",
+          "Beneficiary",
+          "Risk Score",
+          "Level",
+          "Reasons",
+        ].map((h) => (
+          <th
+            key={h}
+            style={{
+              padding: "8px",
+              borderBottom: "2px solid #ddd",
+              textAlign: "left",
+            }}
           >
-            {riskMessage}
-          </p>
-        </div>
-      </div>
-      <div className="risk-summary-side">
-        <p className="risk-summary-total">{totalTransactions}</p>
-        <p className="risk-summary-total-label">Total Transactions</p>
-        <div className="risk-summary-badges">
-          <span className="risk-summary-count risk-summary-count--high">
-            {highRiskCount} High
-          </span>
-          <span className="risk-summary-count risk-summary-count--medium">
-            {mediumRiskCount} Medium
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const TransactionTable = ({ transactions }) => {
-  const transactionList = transactions || [];
-
-  return (
-    <div className="table-container">
-      <table className="table">
-        <thead>
-          <tr>
-            {[
-              "Date",
-              "Time",
-              "Amount (₹)",
-              "Type",
-              "Beneficiary",
-              "Risk Score",
-              "Risk Level",
-              "Key Factors",
-            ].map((header) => (
-              <th key={header} scope="col">
-                {header}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {transactionList.map((txn) => (
-            <tr key={txn.id}>
-              <td>{txn.date}</td>
-              <td>{txn.time}</td>
-              <td>
-                <span
-                  className={
-                    txn.type === "Debit" ? "amount-debit" : "amount-credit"
-                  }
-                >
-                  {txn.type === "Debit" ? "↓ " : "↑ "}
-                  ₹{txn.amount.toLocaleString("en-IN")}
-                </span>
-              </td>
-              <td>{txn.type}</td>
-              <td>{txn.beneficiary}</td>
-              <td style={{ textAlign: "center" }}>
-                <span className="badge badge-neutral">{txn.risk.score}</span>
-              </td>
-              <td style={{ textAlign: "center" }}>
-                <span className={txn.risk.colorClass}>{txn.risk.level}</span>
-              </td>
-              <td className="table-factors-cell">{txn.risk.factors}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      {transactionList.length === 0 && (
-        <div className="status-message status-message--empty">
-          No transactions found for this UPI ID.
-        </div>
-      )}
-    </div>
-  );
-};
+            {h}
+          </th>
+        ))}
+      </tr>
+    </thead>
+    <tbody>
+      {list.map((t) => (
+        <tr key={t.id}>
+          <td style={{ padding: "8px" }}>{t.date}</td>
+          <td style={{ padding: "8px" }}>{t.time}</td>
+          <td style={{ padding: "8px" }}>₹{t.amount}</td>
+          <td style={{ padding: "8px" }}>{t.type}</td>
+          <td style={{ padding: "8px" }}>{t.beneficiary}</td>
+          <td style={{ padding: "8px" }}>{t.risk.score}</td>
+          <td style={{ padding: "8px" }}>{t.risk.level}</td>
+          <td style={{ padding: "8px" }}>{t.risk.reasons.join(", ")}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+);
 
 // =================================================================
-// --- DASHBOARD PAGE (MAIN EXPORT) ---
+// Main Page
 // =================================================================
 
-const RiskDashboardPage = () => {
-  const [upiId, setUpiId] = useState("user123@bank");
-  const [transactions, setTransactions] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [isDataFetched, setIsDataFetched] = useState(false);
+export default function Dashboard() {
+  const [upiId, setUpiId] = useState("");
+  const [txns, setTxns] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  const handleFetchTransactions = () => {
-    if (!upiId) {
-      setError("Please enter a valid UPI ID.");
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-    setTransactions([]);
-    setIsDataFetched(false);
-
+  const fetchTxns = () => {
+    setLoading(true);
     setTimeout(() => {
-      try {
-        const rawTransactions = generateMockTransactions();
-        const processedTransactions = rawTransactions.map((txn) => ({
-          ...txn,
-          risk: calculateRiskScore(txn),
-        }));
-
-        setTransactions(processedTransactions);
-        setIsDataFetched(true);
-      } catch (e) {
-        setError("Failed to process data. Try again.");
-      } finally {
-        setIsLoading(false);
-      }
-    }, 1500);
+      const generated = generateMockTransactions();
+      const processed = generated.map((t) => ({
+        ...t,
+        risk: calculateRisk(t),
+      }));
+      setTxns(processed);
+      setLoading(false);
+    }, 1000);
   };
 
-  useEffect(() => {
-    handleFetchTransactions();
-  }, []);
-
-  const summaryData = useMemo(() => {
-    if (!isDataFetched || transactions.length === 0) return null;
-    return transactions;
-  }, [transactions, isDataFetched]);
-
   return (
-    <div className="dashboard-root">
-      <header className="dashboard-header">
-        <div className="dashboard-title-row">
-          <span className="dashboard-icon" role="img" aria-label="shield">
-            🛡️
-          </span>
-          <h1 className="dashboard-title">UPI Risk Insights</h1>
-        </div>
-        <p className="dashboard-subtitle">
-          Scenario-based risk analysis for simulated UPI activity
-        </p>
-      </header>
+    <div style={{ maxWidth: "900px", margin: "40px auto" }}>
+      <h1 style={{ fontSize: "28px", marginBottom: "10px" }}>
+        🛡️ UPI FraudGuard Dashboard
+      </h1>
 
       <TransactionForm
         upiId={upiId}
-        setUpiId={setUpiId}
-        onFetch={handleFetchTransactions}
-        isLoading={isLoading}
+        onChange={setUpiId}
+        onFetch={fetchTxns}
+        loading={loading}
       />
 
-      {isLoading && (
-        <div className="status-message status-message--info">
-          <span className="status-icon" role="img" aria-label="clock">
-            ⏳
-          </span>
-          <span>Analyzing mock UPI transactions...</span>
-        </div>
-      )}
-      {error && (
-        <div className="status-message status-message--error">
-          Error: {error}
-        </div>
-      )}
+      {loading && <p>Analyzing transactions...</p>}
 
-      {isDataFetched && !isLoading && transactions.length > 0 && (
-        <div className="dashboard-content">
-          <RiskSummaryCard transactions={summaryData} />
-          <div>
-            <h2 className="section-title" style={{ marginTop: 8 }}>
-              Recent Simulated Transactions (Last 30 Days)
-            </h2>
-            <TransactionTable transactions={transactions} />
-          </div>
-        </div>
+      {txns.length > 0 && (
+        <>
+          <h2 style={{ margin: "20px 0" }}>Recent Transactions</h2>
+          <TransactionTable list={txns} />
+        </>
       )}
     </div>
   );
-};
-
-export default RiskDashboardPage;
+}
