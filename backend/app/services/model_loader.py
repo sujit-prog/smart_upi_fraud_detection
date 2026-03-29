@@ -170,7 +170,7 @@ class ModelService:
                 df_scaled = self.scaler.transform(df)
                 return df_scaled
             
-            return df.values
+            return df
             
         except Exception as e:
             logger.error(f"Error preprocessing features: {e}")

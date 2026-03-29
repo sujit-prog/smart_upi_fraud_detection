@@ -9,7 +9,7 @@ from ...core.database import get_db, create_user, get_user_by_username, get_user
 from ...core.auth import authenticate_user, create_access_token, get_current_user, get_password_hash, validate_password_strength
 from ...core.config import settings
 from ...schemas.user import UserCreate, UserResponse, Token
-from ...models.user import User
+from ...core.database import User
 
 logger = logging.getLogger(__name__)
 

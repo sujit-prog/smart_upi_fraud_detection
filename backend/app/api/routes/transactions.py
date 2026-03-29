@@ -6,10 +6,9 @@ from typing import List, Optional
 from datetime import datetime, timedelta
 import logging
 
-from ...core.database import get_db, Transaction, log_audit_event
+from ...core.database import get_db, Transaction, log_audit_event, User
 from ...core.auth import get_current_user
 from ...schemas.transaction import TransactionResponse, TransactionSummary
-from ...models.user import User
 from ...core.config import settings
 
 logger = logging.getLogger(__name__)

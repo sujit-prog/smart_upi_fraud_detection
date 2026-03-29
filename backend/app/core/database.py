@@ -14,9 +14,8 @@ logger = logging.getLogger(__name__)
 # Database setup
 engine = create_engine(
     get_database_url(),
-    pool_pre_ping=True,
-    pool_recycle=300,
-    echo=False  # Set to True for SQL debugging
+    connect_args={"check_same_thread": False},
+    echo=False
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
@@ -221,7 +220,7 @@ def get_transactions(
     offset: int = 0,
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None
-) -> List[Transaction]:
+) -> list[Transaction]:
     """Get transactions with proper filtering and pagination"""
     try:
         query = db.query(Transaction)

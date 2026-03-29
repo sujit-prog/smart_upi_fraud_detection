@@ -1,358 +1,336 @@
 "use client";
+import React, { useState, useEffect } from "react";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
-
-// =================================================================
-// --- BASIC UTILS (no Tailwind, no icon libs) ---
-// =================================================================
-
-const randomInt = (min, max) =>
-  Math.floor(Math.random() * (max - min + 1)) + min;
-
-const mockBeneficiaries = [
-  "Manoj_KiranaStore@okicici",
-  "Priya_Tuition@ybl",
-  "ElectricityBill@biz",
-  "NetflixSubscription@paytm",
-  "OldFriendRamesh@axl",
-  "NEW_MERCHANT_XYZ@sbi",
-];
-
-const generateMockTransactions = () => {
-  const today = new Date();
-  const transactions = [];
-
-  for (let i = 0; i < 20; i++) {
-    const date = new Date(
-      today.getTime() - randomInt(1, 30) * 24 * 60 * 60 * 1000
-    );
-    const amount = randomInt(50, 25000);
-    const beneficiary =
-      mockBeneficiaries[randomInt(0, mockBeneficiaries.length - 1)];
-    const isNewBeneficiary = beneficiary.includes("NEW_MERCHANT");
-    const isLateNight = date.getHours() >= 23 || date.getHours() <= 5;
-
-    transactions.push({
-      id: `TXN${Date.now()}-${i}${randomInt(100, 999)}`,
-      date: date.toISOString().split("T")[0],
-      time: date.toTimeString().split(" ")[0].substring(0, 5),
-      amount,
-      type: randomInt(0, 1) === 0 ? "Debit" : "Credit",
-      beneficiary,
-      isNewBeneficiary,
-      isLateNight,
-    });
-  }
-
-  return transactions.sort(
-    (a, b) =>
-      new Date(`${b.date} ${b.time}`) - new Date(`${a.date} ${a.time}`)
-  );
+const VIEWS = {
+  HOME: "HOME",
+  SCAN: "SCAN",
+  ANALYZING: "ANALYZING",
+  PAYMENT: "PAYMENT",
+  SUCCESS: "SUCCESS",
 };
 
-const calculateRiskScore = (transaction) => {
-  let score = 0;
-  const factors = [];
+export default function MobileApp() {
+  const [currentView, setCurrentView] = useState(VIEWS.HOME);
+  const [upiId, setUpiId] = useState("");
+  const [amount, setAmount] = useState("");
 
-  if (transaction.amount > 15000) {
-    score += 35;
-    factors.push("Large Amount (High)");
-  } else if (transaction.amount > 5000) {
-    score += 15;
-    factors.push("Large Amount (Medium)");
-  }
-
-  if (transaction.isNewBeneficiary) {
-    score += 40;
-    factors.push("New/Untrusted Beneficiary");
-  }
-
-  if (transaction.isLateNight) {
-    score += 20;
-    factors.push("Unusual Transaction Time (Late Night)");
-  }
-
-  if (transaction.type === "Debit") {
-    score += 5;
-  }
-
-  score = Math.min(score, 100);
-
-  let level;
-  let colorClass;
-  if (score > 65) {
-    level = "High";
-    colorClass = "badge badge-high";
-  } else if (score > 30) {
-    level = "Medium";
-    colorClass = "badge badge-medium";
-  } else {
-    level = "Low";
-    colorClass = "badge badge-low";
-  }
-
-  return {
-    score,
-    level,
-    colorClass,
-    factors: factors.length > 0 ? factors.join(", ") : "Standard Behavior",
-  };
-};
-
-// =================================================================
-// --- COMPONENTS (plain CSS classes, emojis instead of lucide) ---
-// =================================================================
-
-const TransactionForm = ({ upiId, setUpiId, onFetch, isLoading }) => {
-  return (
-    <div className="tf-container">
-      <input
-        type="text"
-        placeholder="Enter UPI ID (e.g., user123@bank)"
-        value={upiId}
-        onChange={(e) => setUpiId(e.target.value)}
-        className="input-text tf-input"
-      />
-      <button
-        onClick={onFetch}
-        disabled={isLoading || !upiId}
-        className="button button-primary tf-button"
-      >
-        <span role="img" aria-label="search">
-          🔍
-        </span>
-        <span style={{ marginLeft: 6 }}>
-          {isLoading ? "Fetching..." : "Check Transactions"}
-        </span>
-      </button>
-    </div>
-  );
-};
-
-const RiskSummaryCard = ({ transactions }) => {
-  if (!transactions || transactions.length === 0) return null;
-
-  const highRiskCount = transactions.filter(
-    (t) => t.risk.level === "High"
-  ).length;
-  const mediumRiskCount = transactions.filter(
-    (t) => t.risk.level === "Medium"
-  ).length;
-  const totalTransactions = transactions.length;
-  const safePercentage = Math.round(
-    ((totalTransactions - highRiskCount) / totalTransactions) * 100
-  );
-
-  const riskMessage =
-    highRiskCount > 0
-      ? `ALERT: ${highRiskCount} transactions flagged as HIGH Risk.`
-      : `Overall security is ${safePercentage}%. No HIGH risk transactions found.`;
-
-  const icon =
-    highRiskCount > 0 ? (
-      <span className="risk-summary-icon risk-summary-icon--alert">⚠️</span>
-    ) : (
-      <span className="risk-summary-icon risk-summary-icon--ok">✅</span>
-    );
-
-  const boxClass =
-    highRiskCount > 0
-      ? "risk-summary risk-summary--alert"
-      : "risk-summary risk-summary--ok";
-
-  return (
-    <div className={boxClass}>
-      <div className="risk-summary-main">
-        {icon}
-        <div>
-          <h2 className="risk-summary-title">Risk Summary (Last 30 Days)</h2>
-          <p
-            className={
-              highRiskCount > 0
-                ? "risk-summary-text risk-summary-text--alert"
-                : "risk-summary-text risk-summary-text--ok"
-            }
-          >
-            {riskMessage}
-          </p>
-        </div>
-      </div>
-      <div className="risk-summary-side">
-        <p className="risk-summary-total">{totalTransactions}</p>
-        <p className="risk-summary-total-label">Total Transactions</p>
-        <div className="risk-summary-badges">
-          <span className="risk-summary-count risk-summary-count--high">
-            {highRiskCount} High
-          </span>
-          <span className="risk-summary-count risk-summary-count--medium">
-            {mediumRiskCount} Medium
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const TransactionTable = ({ transactions }) => {
-  const transactionList = transactions || [];
-
-  return (
-    <div className="table-container">
-      <table className="table">
-        <thead>
-          <tr>
-            {[
-              "Date",
-              "Time",
-              "Amount (₹)",
-              "Type",
-              "Beneficiary",
-              "Risk Score",
-              "Risk Level",
-              "Key Factors",
-            ].map((header) => (
-              <th key={header} scope="col">
-                {header}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {transactionList.map((txn) => (
-            <tr key={txn.id}>
-              <td>{txn.date}</td>
-              <td>{txn.time}</td>
-              <td>
-                <span
-                  className={
-                    txn.type === "Debit" ? "amount-debit" : "amount-credit"
-                  }
-                >
-                  {txn.type === "Debit" ? "↓" : "↑"} ₹
-                  {txn.amount.toLocaleString("en-IN")}
-                </span>
-              </td>
-              <td>{txn.type}</td>
-              <td>{txn.beneficiary}</td>
-              <td style={{ textAlign: "center" }}>
-                <span className="badge badge-neutral">{txn.risk.score}</span>
-              </td>
-              <td style={{ textAlign: "center" }}>
-                <span className={txn.risk.colorClass}>{txn.risk.level}</span>
-              </td>
-              <td className="table-factors-cell">{txn.risk.factors}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      {transactionList.length === 0 && (
-        <div className="status-message status-message--empty">
-          No transactions found for this UPI ID.
-        </div>
-      )}
-    </div>
-  );
-};
-
-// =================================================================
-// --- DASHBOARD PAGE (MAIN EXPORT) ---
-// =================================================================
-
-const DashboardPage = () => {
-  const [upiId, setUpiId] = useState("user123@bank");
-  const [transactions, setTransactions] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
+  // Risk State
+  const [isHighRisk, setIsHighRisk] = useState(false);
+  const [riskFactors, setRiskFactors] = useState([]);
+  const [showRiskSheet, setShowRiskSheet] = useState(false);
   const [error, setError] = useState(null);
-  const [isDataFetched, setIsDataFetched] = useState(false);
 
-  const handleFetchTransactions = useCallback(() => {
-    if (!upiId) {
-      setError("Please enter a valid UPI ID.");
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-    setTransactions([]);
-    setIsDataFetched(false);
-
-    setTimeout(() => {
-      try {
-        const rawTransactions = generateMockTransactions();
-        const processedTransactions = rawTransactions.map((txn) => ({
-          ...txn,
-          risk: calculateRiskScore(txn),
-        }));
-
-        setTransactions(processedTransactions);
-        setIsDataFetched(true);
-      } catch (e) {
-        console.error(e);
-        setError("Failed to process data. Try again.");
-      } finally {
-        setIsLoading(false);
-      }
-    }, 1500);
-  }, [upiId]);
+  // Bottom Nav
+  const [activeTab, setActiveTab] = useState("home");
 
   useEffect(() => {
-    handleFetchTransactions();
-  }, [handleFetchTransactions]);
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker
+        .register("/sw.js")
+        .then((reg) => console.log("SW registered", reg))
+        .catch((err) => console.error("SW error", err));
+    }
+  }, []);
 
-  const summaryData = useMemo(() => {
-    if (!isDataFetched || transactions.length === 0) return null;
-    return transactions;
-  }, [transactions, isDataFetched]);
+  const startScan = () => {
+    setUpiId("");
+    setAmount("");
+    setIsHighRisk(false);
+    setRiskFactors([]);
+    setShowRiskSheet(false);
+    setError(null);
+    setCurrentView(VIEWS.SCAN);
+    setActiveTab("scan");
+  };
+
+  const goHome = () => {
+    setCurrentView(VIEWS.HOME);
+    setActiveTab("home");
+  };
+
+  const analyzeRisk = async (e) => {
+    e.preventDefault();
+    if (!upiId) return;
+
+    setCurrentView(VIEWS.ANALYZING);
+    setError(null);
+
+    try {
+      const response = await fetch("http://localhost:8000/api/v1/fraud/analyze-upi", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ upi_id: upiId }),
+      });
+
+      if (!response.ok) throw new Error("Backend connection failed");
+      const data = await response.json();
+
+      let highRiskFound = false;
+      let highestRiskFactors = [];
+
+      // Check the latest generated transaction for risk
+      if (data && data.length > 0) {
+        const latestTxn = data[0];
+        if (latestTxn.risk.level === "High") {
+          highRiskFound = true;
+          highestRiskFactors = latestTxn.risk.factors.split(', ');
+        }
+      }
+
+      setTimeout(() => {
+        setIsHighRisk(highRiskFound);
+        setRiskFactors(highestRiskFactors);
+
+        if (highRiskFound) {
+          setCurrentView(VIEWS.PAYMENT); // Set background view
+          setShowRiskSheet(true); // Pop up sheet
+        } else {
+          setCurrentView(VIEWS.PAYMENT);
+        }
+      }, 1500); // Artificial delay to show "Analyzing" animation
+
+    } catch (err) {
+      console.error(err);
+      setError("Failed to connect to AI engine");
+      setCurrentView(VIEWS.SCAN);
+    }
+  };
+
+  const processPayment = (e) => {
+    e.preventDefault();
+    if (!amount || isNaN(amount) || amount <= 0) return;
+    setCurrentView(VIEWS.SUCCESS);
+  };
 
   return (
-    <div className="dashboard-root">
-      <header className="dashboard-header">
-        <div className="dashboard-title-row">
-          <span className="dashboard-icon" role="img" aria-label="shield">
-            🛡️
-          </span>
-          <h1 className="dashboard-title">UPI FraudGuard Dashboard</h1>
-        </div>
-        <p className="dashboard-subtitle">
-          Your Personal Transaction Monitoring Hub
-        </p>
-      </header>
+    <div className="mobile-app-container">
+      {/* ----------------- HOME VIEW ----------------- */}
+      {currentView === VIEWS.HOME && (
+        <div className="app-content">
+          <header className="top-header">
+            <div className="profile-pic">SJ</div>
+            <div className="notif-btn">🔔</div>
+          </header>
 
-      <TransactionForm
-        upiId={upiId}
-        setUpiId={setUpiId}
-        onFetch={handleFetchTransactions}
-        isLoading={isLoading}
-      />
+          <div className="balance-card">
+            <div className="balance-label">Total Balance</div>
+            <div className="balance-amount">₹42,500.00</div>
+          </div>
 
-      {isLoading && (
-        <div className="status-message status-message--info">
-          <span className="status-icon" role="img" aria-label="clock">
-            ⏳
-          </span>
-          <span>Analyzing UPI transactions...</span>
+          <div className="section-title">Quick Actions</div>
+          <div className="action-grid">
+            <div className="action-item" onClick={startScan}>
+              <div className="action-icon scan">📷</div>
+              <div className="action-label">Scan & Pay</div>
+            </div>
+            <div className="action-item" onClick={startScan}>
+              <div className="action-icon">👥</div>
+              <div className="action-label">Pay Contacts</div>
+            </div>
+            <div className="action-item">
+              <div className="action-icon">🏦</div>
+              <div className="action-label">To Bank</div>
+            </div>
+            <div className="action-item">
+              <div className="action-icon">🔁</div>
+              <div className="action-label">Self Transfer</div>
+            </div>
+          </div>
+
+          <div className="section-title">Recent Payments</div>
+          <div className="contacts-scroller">
+            {["Priya", "Rahul", "Zomato", "Uber", "Mom", "Gym"].map((name, i) => (
+              <div className="contact-item" key={i}>
+                <div className="contact-avatar">{name.charAt(0)}</div>
+                <div className="contact-name">{name}</div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
-      {error && (
-        <div className="status-message status-message--error">
-          Error: {error}
+
+      {/* ----------------- SCAN VIEW ----------------- */}
+      {currentView === VIEWS.SCAN && (
+        <div className="screen-overlay">
+          <header className="screen-header">
+            <button className="back-btn" onClick={goHome}>←</button>
+            <div className="screen-title">Scan & Pay</div>
+          </header>
+
+          <div className="scan-container">
+            <div className="scanner-frame">
+              <div className="scanner-line"></div>
+              <p style={{ color: 'rgba(255,255,255,0.5)' }}>Aim at QR Code</p>
+            </div>
+
+            <p style={{ marginBottom: 20, color: 'var(--text-muted)' }}>OR</p>
+
+            <form onSubmit={analyzeRisk} style={{ width: '100%' }}>
+              <div className="input-group">
+                <input
+                  type="text"
+                  className="pay-input"
+                  placeholder="Enter UPI ID or Number"
+                  value={upiId}
+                  onChange={(e) => setUpiId(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              {error && <p style={{ color: 'var(--danger)', marginBottom: 15, textAlign: 'center' }}>{error}</p>}
+              <button
+                type="submit"
+                className="primary-btn"
+                disabled={!upiId}
+              >
+                Verify & Proceed
+              </button>
+            </form>
+          </div>
         </div>
       )}
 
-      {isDataFetched && !isLoading && transactions.length > 0 && (
-        <div className="dashboard-content">
-          <RiskSummaryCard transactions={summaryData} />
-          <div>
-            <h2 className="section-title" style={{ marginTop: 8 }}>
-              Recent Transactions (Last 30 Days)
-            </h2>
-            <TransactionTable transactions={transactions} />
+      {/* ----------------- ANALYZING VIEW ----------------- */}
+      {currentView === VIEWS.ANALYZING && (
+        <div className="loading-overlay">
+          <div className="loader"></div>
+          <div className="loading-text">AI Risk Assessment Running...</div>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Analyzing {upiId}</p>
+        </div>
+      )}
+
+      {/* ----------------- PAYMENT VIEW & ALERTS ----------------- */}
+      {currentView === VIEWS.PAYMENT && (
+        <div className="screen-overlay">
+          <header className="screen-header">
+            <button className="back-btn" onClick={startScan}>←</button>
+            <div className="screen-title">Make Payment</div>
+          </header>
+
+          <div className="app-content" style={{ textAlign: 'center' }}>
+
+            <div className="receiver-info">
+              <div className="receiver-avatar">{upiId.charAt(0).toUpperCase()}</div>
+              <div className="receiver-details" style={{ textAlign: 'left' }}>
+                <h3>{upiId}</h3>
+                <p>Banking Name: Not Available</p>
+              </div>
+            </div>
+
+            <form onSubmit={processPayment}>
+              <div className="amount-input-wrapper">
+                <span className="currency-sym">₹</span>
+                <input
+                  type="number"
+                  className="amount-input"
+                  placeholder="0"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  autoFocus={!showRiskSheet}
+                />
+              </div>
+
+              <div style={{ position: 'absolute', bottom: 100, left: 24, right: 24 }}>
+                <button
+                  type="submit"
+                  className="primary-btn"
+                  disabled={!amount || amount <= 0}
+                >
+                  Pay ₹{amount || 0}
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {/* RISK ALERT BOTTOM SHEET */}
+          {showRiskSheet && (
+            <div className="sheet-backdrop">
+              <div className="bottom-sheet">
+                <div className="risk-alert-card">
+
+                  {isHighRisk ? (
+                    <>
+                      <div className="risk-icon-wrapper">
+                        <div className="risk-icon">⚠️</div>
+                      </div>
+                      <h2 className="risk-title">High Risk Detected</h2>
+                      <p className="risk-desc">
+                        Our AI has flagged this UPI ID for suspicious behavior. Paying this user may result in financial loss.
+                      </p>
+
+                      <div className="risk-factors">
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 }}>Risk Factors Identified:</p>
+                        {riskFactors.map((factor, i) => (
+                          <div className="factor-item" key={i}>
+                            <span style={{ color: 'var(--danger)' }}>•</span> {factor}
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="btn-group">
+                        <button className="primary-btn secondary-btn" onClick={goHome}>Cancel Payment</button>
+                        <button className="primary-btn danger-btn" onClick={() => setShowRiskSheet(false)}>I Understand, Proceed</button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="risk-icon-wrapper trust-icon-wrapper">
+                        <div className="trust-icon">✓</div>
+                      </div>
+                      <h2 className="risk-title trust-title">Verified Receiver</h2>
+                      <p className="risk-desc" style={{ marginBottom: 30 }}>
+                        This UPI ID exhibits normal transaction patterns and is considered safe.
+                      </p>
+                      <button className="primary-btn" onClick={() => setShowRiskSheet(false)}>Continue to Pay</button>
+                    </>
+                  )}
+
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ----------------- SUCCESS VIEW ----------------- */}
+      {currentView === VIEWS.SUCCESS && (
+        <div className="screen-overlay success-screen" style={{ justifyContent: 'center', padding: 24, alignItems: 'center', textAlign: 'center' }}>
+          <div className="checkmark-circle">
+            <span className="checkmark">✓</span>
+          </div>
+          <h2 style={{ fontSize: '2rem', marginBottom: 10 }}>Payment Sent!</h2>
+          <p style={{ fontSize: '1.2rem', marginBottom: 40 }}>₹{amount} to {upiId}</p>
+
+          <button
+            className="primary-btn"
+            style={{ background: 'white', color: 'var(--success)', marginTop: 40 }}
+            onClick={goHome}
+          >
+            Back to Home
+          </button>
+        </div>
+      )}
+
+      {/* ----------------- BOTTOM NAVIGATION ----------------- */}
+      {(currentView === VIEWS.HOME || currentView === VIEWS.SCAN) && (
+        <div className="bottom-nav">
+          <div className={`nav-item ${activeTab === 'home' ? 'active' : ''}`} onClick={goHome}>
+            <div className="nav-icon">🏠</div>
+            <div className="nav-label">Home</div>
+          </div>
+          <div className={`nav-item ${activeTab === 'scan' ? 'active' : ''}`} onClick={startScan}>
+            <div className="nav-icon">📱</div>
+            <div className="nav-label">Scan</div>
+          </div>
+          <div className={`nav-item ${activeTab === 'history' ? 'active' : ''}`}>
+            <div className="nav-icon">📜</div>
+            <div className="nav-label">History</div>
+          </div>
+          <div className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}>
+            <div className="nav-icon">👤</div>
+            <div className="nav-label">Profile</div>
           </div>
         </div>
       )}
     </div>
   );
-};
-
-export default DashboardPage;
+}

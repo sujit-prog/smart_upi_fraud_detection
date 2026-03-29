@@ -9,8 +9,7 @@ from jose import JWTError, jwt
 import logging
 
 from .config import settings
-from .database import get_db, get_user_by_username, update_user_login, log_audit_event
-from ..models.user import User
+from .database import get_db, get_user_by_username, update_user_login, log_audit_event, User
 
 logger = logging.getLogger(__name__)
 

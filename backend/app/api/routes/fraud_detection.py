@@ -1,95 +1,118 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
-from typing import List
+from typing import List, Dict, Any
 from datetime import datetime
+import pandas as pd
+import numpy as np
 
 router = APIRouter()
 
 class AnalyzeUPIRequest(BaseModel):
     upi_id: str
 
-class TransactionOut(BaseModel):
-    id: int
-    amount: float
-    destination: str
-    timestamp: float
-    type: str
-    risk_score: int
-    risk_level: str
+def random_int(min_val, max_val):
+    return int(np.random.randint(min_val, max_val + 1))
 
-@router.post("/analyze-upi", response_model=List[TransactionOut])
-async def analyze_upi(request: AnalyzeUPIRequest):
+@router.post("/analyze-upi")
+async def analyze_upi(request: AnalyzeUPIRequest, api_request: Request):
     """
-    Simple mock endpoint for now.
-    Later you can replace with real DB + ML logic.
+    Uses the real ML model to predict fraud for recent transactions.
     """
     upi_id = request.upi_id
+    model_service = api_request.app.state.model_service
 
     if "@" not in upi_id:
         return []
 
+    # 1. Generate recent transactions (since we don't have a real DB yet)
+    transactions = []
+    features_list = []
+    
+    today = datetime.now()
+    beneficiaries = ["merchant", "P2P", "recharge", "bill_payment"]
+    devices = ["Android", "iOS", "Web"]
+    categories = ["grocery", "utilities", "electronics", "entertainment", "travel", "others"]
+    
+    num_txns = 20
     is_high_risk_user = "scammer" in upi_id.lower()
-    now = datetime.utcnow().timestamp() * 1000  # ms
 
-    transactions = [
-        {
-            "id": 101,
-            "amount": 45000 if is_high_risk_user else 250,
-            "destination": "groceries_vendor@okicici",
-            "timestamp": now - 3600000,
-            "type": "DEBIT",
-        },
-        {
-            "id": 102,
-            "amount": 50 if is_high_risk_user else 15000,
-            "destination": "loan_repay_agent@ybl",
-            "timestamp": now - 7200000,
-            "type": "DEBIT",
-        },
-        {
-            "id": 103,
-            "amount": 500,
-            "destination": "friend_upi@axisbank",
-            "timestamp": now - 10800000,
-            "type": "CREDIT",
-        },
-        {
-            "id": 104,
-            "amount": 99999 if is_high_risk_user else 5000,
-            "destination": "unknown_wallet@paytm",
-            "timestamp": now - 86400000,
-            "type": "DEBIT",
-        },
-    ]
+    for i in range(num_txns):
+        # Generate raw data
+        days_ago = random_int(0, 30)
+        txn_date = today - pd.Timedelta(days=days_ago)
+        hour = txn_date.hour if not is_high_risk_user else random_int(1, 4)  # scammers operate late
+        
+        amount = random_int(50, 25000)
+        if is_high_risk_user and i < 5:
+             amount = random_int(50000, 150000)
+             
+        txn_type = beneficiaries[random_int(0, len(beneficiaries) - 1)]
+        device = devices[random_int(0, len(devices) - 1)]
+        category = categories[random_int(0, len(categories) - 1)]
+        is_foreign = 1 if is_high_risk_user and random_int(0, 10) > 8 else 0
+        txns_last_24h = random_int(0, 5) if not is_high_risk_user else random_int(5, 15)
+        
+        # Build features for ML model
+        feature_dict = {
+            'transaction_amount': amount,
+            'transaction_type': txn_type,
+            'device_type': device,
+            'merchant_category': category,
+            'hour': hour,
+            'transactions_last_24h': txns_last_24h,
+            'is_foreign': is_foreign
+        }
+        features_list.append(feature_dict)
+        
+        # Build raw transaction for Frontend UI
+        transactions.append({
+            "id": f"TXN{random_int(100000, 999999)}-{i}",
+            "date": txn_date.strftime("%Y-%m-%d"),
+            "time": txn_date.strftime("%H:%M:%S")[:5],
+            "amount": amount,
+            "type": "Debit" if random_int(0, 1) == 0 else "Credit",
+            "beneficiary": f"{category}_vendor@{txn_type}",
+            "isNewBeneficiary": is_foreign == 1 or amount > 50000,
+            "isLateNight": hour >= 23 or hour <= 5,
+        })
+        
+    # 2. ML Prediction
+    if model_service and model_service.primary_model:
+        df_features = pd.DataFrame(features_list)
+        # Use Pipeline handle preprocessing automatically
+        probas = model_service.primary_model.predict_proba(df_features)[:, 1]
+    else:
+        # Fallback if model failed to load
+        probas = [0.05] * num_txns
 
-    def calc_risk(t):
-        score = 0
-        if t["amount"] > 10000:
-            score += 40
-        elif t["amount"] > 5000:
-            score += 20
-
-        if "unknown_wallet" in t["destination"]:
-            score += 30
-
-        hours_ago = (now - t["timestamp"]) / 3600000
-        if t["amount"] > 5000 and hours_ago < 2:
-            score += 30
-
-        if "scammer" in t["destination"].lower():
-            score = 95
-
-        score = min(100, score)
-
-        if score >= 70:
-            level = "HIGH"
-        elif score >= 40:
-            level = "MEDIUM"
+    # 3. Format Response for Frontend
+    for i, txn in enumerate(transactions):
+        # Scale probability to 0-100 score
+        score = int(probas[i] * 100)
+        # Add risk rules for UI
+        factors = []
+        if txn["amount"] > 15000: factors.append("Large Amount (High)")
+        elif txn["amount"] > 5000: factors.append("Large Amount (Medium)")
+        if txn["isNewBeneficiary"]: factors.append("New/Untrusted Beneficiary")
+        if txn["isLateNight"]: factors.append("Unusual Transaction Time (Late Night)")
+        
+        if score > 65:
+            level = "High"
+            colorClass = "badge badge-high"
+        elif score > 30:
+            level = "Medium"
+            colorClass = "badge badge-medium"
         else:
-            level = "LOW"
+            level = "Low"
+            colorClass = "badge badge-low"
+            
+        txn["risk"] = {
+            "score": score,
+            "level": level,
+            "colorClass": colorClass,
+            "factors": ", ".join(factors) if factors else "Standard Behavior"
+        }
 
-        t["risk_score"] = score
-        t["risk_level"] = level
-        return t
-
-    return [calc_risk(t) for t in transactions]
+    # Sort descending by date/time
+    transactions.sort(key=lambda x: x["date"] + x["time"], reverse=True)
+    return transactions

@@ -6,9 +6,8 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 import logging
 
-from ...core.database import get_db, Transaction, FraudAlert
+from ...core.database import get_db, Transaction, FraudAlert, User
 from ...core.auth import get_current_user
-from ...models.user import User
 from ...core.config import settings
 
 logger = logging.getLogger(__name__)
