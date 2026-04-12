@@ -1,336 +1,261 @@
-"use client";
-import React, { useState, useEffect } from "react";
+'use client';
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import styles from './page.module.css';
 
-const VIEWS = {
-  HOME: "HOME",
-  SCAN: "SCAN",
-  ANALYZING: "ANALYZING",
-  PAYMENT: "PAYMENT",
-  SUCCESS: "SUCCESS",
-};
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-export default function MobileApp() {
-  const [currentView, setCurrentView] = useState(VIEWS.HOME);
-  const [upiId, setUpiId] = useState("");
-  const [amount, setAmount] = useState("");
-
-  // Risk State
-  const [isHighRisk, setIsHighRisk] = useState(false);
-  const [riskFactors, setRiskFactors] = useState([]);
-  const [showRiskSheet, setShowRiskSheet] = useState(false);
-  const [error, setError] = useState(null);
-
-  // Bottom Nav
-  const [activeTab, setActiveTab] = useState("home");
+export default function Dashboard() {
+  const [token, setToken]           = useState(null);
+  const [stats, setStats]           = useState(null);
+  const [transactions, setTxns]     = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [activeTab, setActiveTab]   = useState('Home');
+  const [showAll, setShowAll]       = useState(false);
 
   useEffect(() => {
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker
-        .register("/sw.js")
-        .then((reg) => console.log("SW registered", reg))
-        .catch((err) => console.error("SW error", err));
-    }
+    (async () => {
+      try {
+        const form = new URLSearchParams();
+        form.append('username', 'testuser');
+        form.append('password', 'Password123!');
+        const loginRes = await fetch(`${API_BASE}/api/v1/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: form.toString(),
+        });
+        if (!loginRes.ok) throw new Error('Login failed');
+        const { access_token: jwt } = await loginRes.json();
+        setToken(jwt);
+
+        const [statsRes, txRes] = await Promise.all([
+          fetch(`${API_BASE}/api/v1/transactions/summary/stats`, { headers: { Authorization: `Bearer ${jwt}` } }),
+          fetch(`${API_BASE}/api/v1/transactions/?limit=20`,     { headers: { Authorization: `Bearer ${jwt}` } }),
+        ]);
+        if (statsRes.ok) setStats(await statsRes.json());
+        if (txRes.ok)    setTxns(await txRes.json());
+      } catch (e) {
+        console.error('Dashboard error:', e);
+        // Demo fallback data
+        setStats({ total_amount: 124850.50, total_transactions: 248, fraud_rate: 3.2, blocked_transactions: 8 });
+        setTxns(DEMO_TRANSACTIONS);
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, []);
 
-  const startScan = () => {
-    setUpiId("");
-    setAmount("");
-    setIsHighRisk(false);
-    setRiskFactors([]);
-    setShowRiskSheet(false);
-    setError(null);
-    setCurrentView(VIEWS.SCAN);
-    setActiveTab("scan");
-  };
+  const fmt  = v => v != null ? `₹${parseFloat(v).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '₹0.00';
+  const fmtD = s => s ? new Date(s).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
 
-  const goHome = () => {
-    setCurrentView(VIEWS.HOME);
-    setActiveTab("home");
-  };
+  const displayed = showAll ? transactions : transactions.slice(0, 6);
 
-  const analyzeRisk = async (e) => {
-    e.preventDefault();
-    if (!upiId) return;
-
-    setCurrentView(VIEWS.ANALYZING);
-    setError(null);
-
-    try {
-      const response = await fetch("http://localhost:8000/api/v1/fraud/analyze-upi", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ upi_id: upiId }),
-      });
-
-      if (!response.ok) throw new Error("Backend connection failed");
-      const data = await response.json();
-
-      let highRiskFound = false;
-      let highestRiskFactors = [];
-
-      // Check the latest generated transaction for risk
-      if (data && data.length > 0) {
-        const latestTxn = data[0];
-        if (latestTxn.risk.level === "High") {
-          highRiskFound = true;
-          highestRiskFactors = latestTxn.risk.factors.split(', ');
-        }
-      }
-
-      setTimeout(() => {
-        setIsHighRisk(highRiskFound);
-        setRiskFactors(highestRiskFactors);
-
-        if (highRiskFound) {
-          setCurrentView(VIEWS.PAYMENT); // Set background view
-          setShowRiskSheet(true); // Pop up sheet
-        } else {
-          setCurrentView(VIEWS.PAYMENT);
-        }
-      }, 1500); // Artificial delay to show "Analyzing" animation
-
-    } catch (err) {
-      console.error(err);
-      setError("Failed to connect to AI engine");
-      setCurrentView(VIEWS.SCAN);
-    }
-  };
-
-  const processPayment = (e) => {
-    e.preventDefault();
-    if (!amount || isNaN(amount) || amount <= 0) return;
-    setCurrentView(VIEWS.SUCCESS);
-  };
+  if (loading) return (
+    <div className={styles.loadingScreen}>
+      <div className={styles.loadingCard}>
+        <div className={styles.aiOrb}><div className="spinner" /></div>
+        <p className={`headline-sm ${styles.loadingTitle}`}>Securing Connection…</p>
+        <p className={`body-sm ${styles.loadingSubtitle}`}>Connecting to AI fraud detection engine</p>
+        {['Fetching registry data', 'Analyzing velocity patterns', 'Computing AI fraud score'].map((s, i) => (
+          <div key={i} className={styles.loadingStep}>
+            <span className={styles.loadingDot} />
+            <span className="body-md" style={{ color: 'rgba(255,255,255,0.7)' }}>{s}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 
   return (
-    <div className="mobile-app-container">
-      {/* ----------------- HOME VIEW ----------------- */}
-      {currentView === VIEWS.HOME && (
-        <div className="app-content">
-          <header className="top-header">
-            <div className="profile-pic">SJ</div>
-            <div className="notif-btn">🔔</div>
-          </header>
-
-          <div className="balance-card">
-            <div className="balance-label">Total Balance</div>
-            <div className="balance-amount">₹42,500.00</div>
+    <div className={styles.root}>
+      {/* ── Sidebar nav ─────────────────────────── */}
+      <aside className={styles.sidebar}>
+        <div className={styles.sidebarBrand}>
+          <div className={styles.brandIcon}>🛡️</div>
+          <div>
+            <p className="label-md" style={{ color: 'var(--text-muted)' }}>Smart UPI</p>
+            <p className="title-sm" style={{ color: 'var(--text)' }}>Dashboard</p>
           </div>
+        </div>
 
-          <div className="section-title">Quick Actions</div>
-          <div className="action-grid">
-            <div className="action-item" onClick={startScan}>
-              <div className="action-icon scan">📷</div>
-              <div className="action-label">Scan & Pay</div>
-            </div>
-            <div className="action-item" onClick={startScan}>
-              <div className="action-icon">👥</div>
-              <div className="action-label">Pay Contacts</div>
-            </div>
-            <div className="action-item">
-              <div className="action-icon">🏦</div>
-              <div className="action-label">To Bank</div>
-            </div>
-            <div className="action-item">
-              <div className="action-icon">🔁</div>
-              <div className="action-label">Self Transfer</div>
+        <nav className={styles.sidebarNav}>
+          {NAV_ITEMS.map(({ icon, label, href, tab }) => (
+            <Link
+              key={label}
+              href={href}
+              className={`${styles.navItem} ${activeTab === tab ? styles.navItemActive : ''}`}
+              onClick={() => setActiveTab(tab)}
+            >
+              <span className={styles.navIcon}>{icon}</span>
+              <span className="title-sm">{label}</span>
+            </Link>
+          ))}
+        </nav>
+
+        <div className={styles.sidebarFooter}>
+          <div className={styles.userCard}>
+            <div className={styles.userAvatar}>TU</div>
+            <div>
+              <p className="title-sm" style={{ color: 'var(--text)' }}>Test User</p>
+              <p className="body-sm" style={{ color: 'var(--text-muted)' }}>testuser@upi</p>
             </div>
           </div>
+        </div>
+      </aside>
 
-          <div className="section-title">Recent Payments</div>
-          <div className="contacts-scroller">
-            {["Priya", "Rahul", "Zomato", "Uber", "Mom", "Gym"].map((name, i) => (
-              <div className="contact-item" key={i}>
-                <div className="contact-avatar">{name.charAt(0)}</div>
-                <div className="contact-name">{name}</div>
+      {/* ── Main content ─────────────────────────── */}
+      <main className={styles.main}>
+        {/* Top bar */}
+        <header className={styles.topBar}>
+          <div>
+            <p className="label-md" style={{ color: 'var(--text-muted)' }}>Secure Dashboard</p>
+            <h1 className="headline-sm" style={{ color: 'var(--text)' }}>Good morning, Test User 👋</h1>
+          </div>
+          <div className={styles.topBarRight}>
+            <Link href="/scan" className={styles.scanCta}>
+              <span>📷</span> Scan & Pay
+            </Link>
+          </div>
+        </header>
+
+        {/* Stat cards */}
+        <section className={styles.statsGrid} aria-label="Summary statistics">
+          <div className={`${styles.balanceCard} gradient-primary fade-in-up`}>
+            <div className={styles.balanceHeader}>
+              <p className="label-md" style={{ color: 'rgba(255,255,255,0.75)' }}>Total Value Transferred</p>
+              <span className={`chip ${styles.protectedChip}`}>Protected ✓</span>
+            </div>
+            <p className={`display-md ${styles.balanceValue}`}>{fmt(stats?.total_amount)}</p>
+            <div className={styles.balanceFooter}>
+              <div>
+                <p className="label-sm" style={{ color: 'rgba(255,255,255,0.6)' }}>Risk Level</p>
+                <p className="title-sm" style={{ color: stats?.fraud_rate > 10 ? '#ffb3b3' : '#a3f0c3' }}>
+                  {stats?.fraud_rate?.toFixed(1) || '0.0'}% AI Detected
+                </p>
               </div>
+              <div>
+                <p className="label-sm" style={{ color: 'rgba(255,255,255,0.6)' }}>Total Txns</p>
+                <p className="title-sm" style={{ color: '#fff' }}>{stats?.total_transactions || 0}</p>
+              </div>
+              <div>
+                <p className="label-sm" style={{ color: 'rgba(255,255,255,0.6)' }}>Blocked</p>
+                <p className="title-sm" style={{ color: '#ffb3b3' }}>{stats?.blocked_transactions || 0}</p>
+              </div>
+            </div>
+          </div>
+
+          {STAT_TILES(stats).map(({ label, value, icon, color, bg }) => (
+            <div key={label} className={`card ${styles.statTile} scale-in`} style={{ animationDelay: '0.1s' }}>
+              <div className={styles.statIcon} style={{ background: bg }}>{icon}</div>
+              <p className="label-sm" style={{ color: 'var(--text-muted)', marginTop: 'var(--space-sm)' }}>{label}</p>
+              <p className="headline-sm" style={{ color }}>{value}</p>
+            </div>
+          ))}
+        </section>
+
+        {/* Quick actions */}
+        <section className={styles.actionsSection}>
+          <h2 className="title-md" style={{ color: 'var(--text)', marginBottom: 'var(--space-md)' }}>Quick Actions</h2>
+          <div className={styles.actionsGrid}>
+            {QUICK_ACTIONS.map(({ icon, label, href, bg }) => (
+              <Link key={label} href={href} className={styles.actionCard}>
+                <div className={styles.actionIcon} style={{ background: bg }}>{icon}</div>
+                <p className="label-md" style={{ color: 'var(--text)', marginTop: 'var(--space-sm)' }}>{label}</p>
+              </Link>
             ))}
           </div>
-        </div>
-      )}
+        </section>
 
-      {/* ----------------- SCAN VIEW ----------------- */}
-      {currentView === VIEWS.SCAN && (
-        <div className="screen-overlay">
-          <header className="screen-header">
-            <button className="back-btn" onClick={goHome}>←</button>
-            <div className="screen-title">Scan & Pay</div>
-          </header>
-
-          <div className="scan-container">
-            <div className="scanner-frame">
-              <div className="scanner-line"></div>
-              <p style={{ color: 'rgba(255,255,255,0.5)' }}>Aim at QR Code</p>
-            </div>
-
-            <p style={{ marginBottom: 20, color: 'var(--text-muted)' }}>OR</p>
-
-            <form onSubmit={analyzeRisk} style={{ width: '100%' }}>
-              <div className="input-group">
-                <input
-                  type="text"
-                  className="pay-input"
-                  placeholder="Enter UPI ID or Number"
-                  value={upiId}
-                  onChange={(e) => setUpiId(e.target.value)}
-                  autoFocus
-                />
-              </div>
-              {error && <p style={{ color: 'var(--danger)', marginBottom: 15, textAlign: 'center' }}>{error}</p>}
-              <button
-                type="submit"
-                className="primary-btn"
-                disabled={!upiId}
-              >
-                Verify & Proceed
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ----------------- ANALYZING VIEW ----------------- */}
-      {currentView === VIEWS.ANALYZING && (
-        <div className="loading-overlay">
-          <div className="loader"></div>
-          <div className="loading-text">AI Risk Assessment Running...</div>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Analyzing {upiId}</p>
-        </div>
-      )}
-
-      {/* ----------------- PAYMENT VIEW & ALERTS ----------------- */}
-      {currentView === VIEWS.PAYMENT && (
-        <div className="screen-overlay">
-          <header className="screen-header">
-            <button className="back-btn" onClick={startScan}>←</button>
-            <div className="screen-title">Make Payment</div>
-          </header>
-
-          <div className="app-content" style={{ textAlign: 'center' }}>
-
-            <div className="receiver-info">
-              <div className="receiver-avatar">{upiId.charAt(0).toUpperCase()}</div>
-              <div className="receiver-details" style={{ textAlign: 'left' }}>
-                <h3>{upiId}</h3>
-                <p>Banking Name: Not Available</p>
-              </div>
-            </div>
-
-            <form onSubmit={processPayment}>
-              <div className="amount-input-wrapper">
-                <span className="currency-sym">₹</span>
-                <input
-                  type="number"
-                  className="amount-input"
-                  placeholder="0"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  autoFocus={!showRiskSheet}
-                />
-              </div>
-
-              <div style={{ position: 'absolute', bottom: 100, left: 24, right: 24 }}>
-                <button
-                  type="submit"
-                  className="primary-btn"
-                  disabled={!amount || amount <= 0}
-                >
-                  Pay ₹{amount || 0}
-                </button>
-              </div>
-            </form>
+        {/* Transactions */}
+        <section className={styles.txSection}>
+          <div className={styles.txHeader}>
+            <h2 className="title-md" style={{ color: 'var(--text)' }}>Recent Network Activity</h2>
+            <button className={styles.seeAllBtn} onClick={() => setShowAll(p => !p)}>
+              {showAll ? 'Show less' : 'See all'}
+            </button>
           </div>
 
-          {/* RISK ALERT BOTTOM SHEET */}
-          {showRiskSheet && (
-            <div className="sheet-backdrop">
-              <div className="bottom-sheet">
-                <div className="risk-alert-card">
-
-                  {isHighRisk ? (
-                    <>
-                      <div className="risk-icon-wrapper">
-                        <div className="risk-icon">⚠️</div>
-                      </div>
-                      <h2 className="risk-title">High Risk Detected</h2>
-                      <p className="risk-desc">
-                        Our AI has flagged this UPI ID for suspicious behavior. Paying this user may result in financial loss.
+          {transactions.length === 0 ? (
+            <div className={styles.emptyState}>
+              <span style={{ fontSize: 40 }}>📭</span>
+              <p className="body-md" style={{ color: 'var(--text-muted)', marginTop: 'var(--space-sm)' }}>No transactions found in database.</p>
+            </div>
+          ) : (
+            <div className={styles.txList}>
+              {displayed.map(tx => (
+                <div key={tx.id} className={`${styles.txItem} fade-in-up`}>
+                  <div className={`${styles.txIcon} ${tx.is_fraudulent ? styles.txIconDanger : styles.txIconSafe}`}>
+                    {tx.is_fraudulent ? '⚠' : '↔'}
+                  </div>
+                  <div className={styles.txDetails}>
+                    <p className="title-sm" style={{ color: 'var(--text)' }}>{tx.receiver_account}</p>
+                    <p className="body-sm" style={{ color: 'var(--text-muted)' }}>{fmtD(tx.transaction_time)}</p>
+                    {tx.is_fraudulent && (
+                      <p className="label-sm" style={{ color: 'var(--error)', marginTop: 2 }}>
+                        Blocked • {tx.fraud_reason}
                       </p>
-
-                      <div className="risk-factors">
-                        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 }}>Risk Factors Identified:</p>
-                        {riskFactors.map((factor, i) => (
-                          <div className="factor-item" key={i}>
-                            <span style={{ color: 'var(--danger)' }}>•</span> {factor}
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="btn-group">
-                        <button className="primary-btn secondary-btn" onClick={goHome}>Cancel Payment</button>
-                        <button className="primary-btn danger-btn" onClick={() => setShowRiskSheet(false)}>I Understand, Proceed</button>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="risk-icon-wrapper trust-icon-wrapper">
-                        <div className="trust-icon">✓</div>
-                      </div>
-                      <h2 className="risk-title trust-title">Verified Receiver</h2>
-                      <p className="risk-desc" style={{ marginBottom: 30 }}>
-                        This UPI ID exhibits normal transaction patterns and is considered safe.
-                      </p>
-                      <button className="primary-btn" onClick={() => setShowRiskSheet(false)}>Continue to Pay</button>
-                    </>
-                  )}
-
+                    )}
+                  </div>
+                  <div className={styles.txRight}>
+                    <p className="title-sm" style={{
+                      color: tx.is_fraudulent ? 'var(--error)' : 'var(--text)',
+                      textDecoration: tx.is_fraudulent ? 'line-through' : 'none',
+                    }}>
+                      -{fmt(tx.amount)}
+                    </p>
+                    <p className="body-sm" style={{ color: 'var(--text-muted)' }}>{tx.transaction_type}</p>
+                  </div>
                 </div>
-              </div>
+              ))}
             </div>
           )}
-        </div>
-      )}
+        </section>
+      </main>
 
-      {/* ----------------- SUCCESS VIEW ----------------- */}
-      {currentView === VIEWS.SUCCESS && (
-        <div className="screen-overlay success-screen" style={{ justifyContent: 'center', padding: 24, alignItems: 'center', textAlign: 'center' }}>
-          <div className="checkmark-circle">
-            <span className="checkmark">✓</span>
-          </div>
-          <h2 style={{ fontSize: '2rem', marginBottom: 10 }}>Payment Sent!</h2>
-          <p style={{ fontSize: '1.2rem', marginBottom: 40 }}>₹{amount} to {upiId}</p>
-
-          <button
-            className="primary-btn"
-            style={{ background: 'white', color: 'var(--success)', marginTop: 40 }}
-            onClick={goHome}
+      {/* ── Mobile bottom bar ────────────────────── */}
+      <nav className={styles.mobileBar}>
+        {NAV_ITEMS.map(({ icon, label, href, tab }) => (
+          <Link key={label} href={href}
+            className={`${styles.mobileNavItem} ${activeTab === tab ? styles.mobileNavActive : ''}`}
+            onClick={() => setActiveTab(tab)}
           >
-            Back to Home
-          </button>
-        </div>
-      )}
-
-      {/* ----------------- BOTTOM NAVIGATION ----------------- */}
-      {(currentView === VIEWS.HOME || currentView === VIEWS.SCAN) && (
-        <div className="bottom-nav">
-          <div className={`nav-item ${activeTab === 'home' ? 'active' : ''}`} onClick={goHome}>
-            <div className="nav-icon">🏠</div>
-            <div className="nav-label">Home</div>
-          </div>
-          <div className={`nav-item ${activeTab === 'scan' ? 'active' : ''}`} onClick={startScan}>
-            <div className="nav-icon">📱</div>
-            <div className="nav-label">Scan</div>
-          </div>
-          <div className={`nav-item ${activeTab === 'history' ? 'active' : ''}`}>
-            <div className="nav-icon">📜</div>
-            <div className="nav-label">History</div>
-          </div>
-          <div className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}>
-            <div className="nav-icon">👤</div>
-            <div className="nav-label">Profile</div>
-          </div>
-        </div>
-      )}
+            <span className={styles.mobileNavIcon}>{icon}</span>
+            <span className="label-sm">{label}</span>
+          </Link>
+        ))}
+        <Link href="/scan" id="scan-fab" className={styles.scanFab} aria-label="Scan QR Code">
+          📷
+        </Link>
+      </nav>
     </div>
   );
 }
+
+/* ── Constants ───────────────────────────────────────────────────── */
+const NAV_ITEMS = [
+  { icon: '🏠', label: 'Home',    href: '/',          tab: 'Home' },
+  { icon: '🕐', label: 'History', href: '/#history',  tab: 'History' },
+  { icon: '🛡️', label: 'Security',href: '/#security', tab: 'Security' },
+];
+
+const STAT_TILES = stats => [
+  { label: 'Safe Transactions', value: ((stats?.total_transactions || 0) - (stats?.blocked_transactions || 0)).toLocaleString(), icon: '✅', color: 'var(--tertiary)', bg: 'rgba(111,251,190,0.25)' },
+  { label: 'Fraud Blocked',     value: (stats?.blocked_transactions || 0).toString(), icon: '🚫', color: 'var(--error)', bg: 'rgba(186,26,26,0.1)' },
+  { label: 'AI Fraud Rate',     value: `${stats?.fraud_rate?.toFixed(1) || '0.0'}%`, icon: '🤖', color: 'var(--primary)', bg: 'rgba(0,64,161,0.1)' },
+];
+
+const QUICK_ACTIONS = [
+  { icon: '📤', label: 'Send',     href: '/scan',      bg: 'rgba(0,102,255,0.12)' },
+  { icon: '📥', label: 'Receive',  href: '/#receive',  bg: 'rgba(0,204,153,0.12)' },
+  { icon: '📄', label: 'Bills',    href: '/#bills',    bg: 'rgba(255,153,51,0.12)' },
+  { icon: '🔒', label: 'Security', href: '/#security', bg: 'rgba(153,51,255,0.12)' },
+];
+
+const DEMO_TRANSACTIONS = [
+  { id: 1, receiver_account: 'merchant@paytm',  amount: 2500, transaction_time: new Date().toISOString(), transaction_type: 'UPI', is_fraudulent: false },
+  { id: 2, receiver_account: 'suspicious@ybl',  amount: 15000, transaction_time: new Date(Date.now()-3600000).toISOString(), transaction_type: 'UPI', is_fraudulent: true,  fraud_reason: 'High velocity' },
+  { id: 3, receiver_account: 'friend@gpay',     amount: 500,  transaction_time: new Date(Date.now()-7200000).toISOString(), transaction_type: 'UPI', is_fraudulent: false },
+  { id: 4, receiver_account: 'shop@phonepe',    amount: 1200, transaction_time: new Date(Date.now()-86400000).toISOString(), transaction_type: 'UPI', is_fraudulent: false },
+  { id: 5, receiver_account: 'unknown@okicici', amount: 8000, transaction_time: new Date(Date.now()-172800000).toISOString(), transaction_type: 'UPI', is_fraudulent: true,  fraud_reason: 'New account' },
+  { id: 6, receiver_account: 'salary@hdfcbank', amount: 50000, transaction_time: new Date(Date.now()-259200000).toISOString(), transaction_type: 'NEFT', is_fraudulent: false },
+];

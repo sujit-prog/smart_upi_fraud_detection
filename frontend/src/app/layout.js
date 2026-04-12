@@ -1,26 +1,29 @@
-// src/app/layout.js
-import "./globals.css";
+import './globals.css';
 
 export const metadata = {
-  title: "FraudGuard UPI",
-  description: "Smart AI-powered UPI Payment Application",
-  manifest: "/manifest.json",
+  title: 'Smart UPI — AI Fraud Detection',
+  description: 'Secure UPI payments powered by real-time AI fraud detection. Scan, verify, and pay with confidence.',
+  keywords: 'UPI payment, fraud detection, AI security, secure payment',
+  openGraph: {
+    title: 'Smart UPI — AI Fraud Detection',
+    description: 'Secure UPI payments powered by real-time AI fraud detection.',
+    type: 'website',
+  },
 };
 
 export const viewport = {
-  themeColor: "#09090b",
-  width: "device-width",
+  width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
 };
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body style={{ backgroundColor: "#000" }}>
-        {children}
-      </body>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      </head>
+      <body>{children}</body>
     </html>
   );
 }

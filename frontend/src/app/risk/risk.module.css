@@ -1,0 +1,117 @@
+.root {
+  min-height: 100vh;
+  background: var(--bg);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-md) var(--space-xl);
+  background: var(--surface-lowest);
+  border-bottom: 1px solid var(--outline-variant);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.backBtn {
+  width: 44px; height: 44px; border-radius: 50%;
+  background: var(--surface-container);
+  color: var(--text);
+  font-size: 20px;
+  border: none;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s;
+}
+.backBtn:hover { background: var(--surface-high); }
+
+.page {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: var(--space-xl) var(--space-xl) var(--space-xxl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+/* ── UPI chip ─────────────────────────────────────── */
+.upiChip {
+  align-self: center;
+  background: var(--surface-container);
+  border-radius: var(--radius-full);
+  padding: 6px var(--space-md);
+}
+
+/* ── Score card ───────────────────────────────────── */
+.scoreCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.scoreRing {
+  width: 160px; height: 160px;
+  border-radius: 50%;
+  border: 12px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.scoreInner {
+  width: 120px; height: 120px;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.barArea { width: 100%; }
+.barLabels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+}
+
+.overallBadge {
+  padding: 8px var(--space-lg);
+  border-radius: var(--radius-full);
+}
+.badgeSafe { background: var(--tertiary-fixed); color: var(--tertiary); }
+.badgeRisk { background: var(--error-container); color: var(--error); }
+
+/* ── Factor list ──────────────────────────────────── */
+.factorList { display: flex; flex-direction: column; }
+.factorRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-sm) 0;
+}
+.factorRowBorder { border-top: 1px solid var(--surface-dim); }
+.factorIcon {
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700;
+  flex-shrink: 0;
+}
+.factorIconSafe { background: var(--tertiary-fixed); color: var(--tertiary); }
+.factorIconRisk { background: var(--error-container); color: var(--error); }
+
+/* ── Button group ─────────────────────────────────── */
+.btnGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+.cancelBtn { text-align: center; }
+
+/* ── Responsive ───────────────────────────────────── */
+@media (max-width: 600px) {
+  .page { padding: var(--space-md) var(--space-md) var(--space-xxl); }
+  .header { padding: var(--space-md); }
+}

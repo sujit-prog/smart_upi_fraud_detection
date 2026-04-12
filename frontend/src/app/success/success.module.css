@@ -1,0 +1,94 @@
+.root {
+  min-height: 100vh;
+  background: var(--bg);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.page {
+  max-width: 520px;
+  width: 100%;
+  padding: var(--space-xxl) var(--space-xl) var(--space-xxl);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-lg);
+}
+
+/* ── Checkmark ────────────────────────────────────── */
+.checkWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.checkCircle {
+  width: 100px; height: 100px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 8px 32px rgba(0,108,73,0.3);
+}
+.checkIcon {
+  color: #fff;
+  font-size: 44px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* ── Title ────────────────────────────────────────── */
+.titleSection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+/* ── Details card ─────────────────────────────────── */
+.detailsCard { width: 100%; }
+.detailRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-sm) 0;
+}
+.detailRowBorder { border-top: 1px solid var(--surface-dim); }
+
+/* ── Action row ───────────────────────────────────── */
+.actionRow {
+  display: flex;
+  gap: var(--space-sm);
+  width: 100%;
+}
+.shareBtn {
+  flex: 1;
+  height: 48px;
+  border-radius: var(--radius-lg);
+  background: var(--primary-fixed);
+  color: var(--primary);
+  border: none;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.shareBtn:hover { opacity: 0.85; }
+.reportBtn {
+  flex: 1;
+  height: 48px;
+  border-radius: var(--radius-lg);
+  background: var(--surface-highest);
+  color: var(--text-secondary);
+  border: none;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.reportBtn:hover { opacity: 0.85; }
+
+/* ── Responsive ───────────────────────────────────── */
+@media (max-width: 600px) {
+  .page { padding: var(--space-xl) var(--space-md); }
+}
